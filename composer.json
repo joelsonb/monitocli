@@ -1,0 +1,22 @@
+{
+    "name": "joelsonb/monitocli",
+    "minimum-stability": "dev",
+    "description": "Monitocli - just a personal project",
+    "homepage": "http://gitlab.com/joelsonb/monitocli",
+    "authors": [
+        {
+            "name": "Joelson B",
+            "email": "joelsonb@msn.com"
+        }
+    ],
+    "license": "BSD-3-Clause",
+    "require": {
+        "php": ">=5.4.0",
+        "ulrichsg/getopt-php": "^3.0.0-beta.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "MonitoCli\\": "src"
+        }
+    }
+}
