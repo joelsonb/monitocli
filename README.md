@@ -1,2 +1,2 @@
 # monitocli
-It's a private open repo. There're nothing to see here.
+It's a private open repo. There's nothing to see here.

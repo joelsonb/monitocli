@@ -7,38 +7,51 @@ class Command
 	private $argv;
 	private $command;
 
-	public function __construct ($command, $argv)
+	// public function __construct ($command, $argv)
+	// {
+	// 	if (is_null($command) || !method_exists($this, $command)) {
+	// 		$this->listCommands();
+	// 	}
+
+	// 	$this->command = $command;
+	// 	$this->argv    = $argv;
+	// }
+	public function __construct ($request)
 	{
-		if (is_null($command) || !method_exists($this, $command))
-		{
+		if (is_null($request->command) || !method_exists($this, $request->command)) {
 			$this->listCommands();
 		}
 
-		$this->command = $command;
-		$this->argv    = $argv;
+		$this->command = $request->command;
+		$this->argv    = $request->params;
 	}
-	private function listCommands () {
+	private function listCommands ()
+	{
 		echo 'Command v' . self::VERSION . PHP_EOL;
 		echo 'Available commands:' . PHP_EOL;
 		echo 'create: creates classes' . PHP_EOL;
 		exit;
 	}
 	// private function create ($argv)
-	private function create ($argv)
+	public function create ($argv =  null)
 	{
-		$create = new \MonitoFeo\cli\Commands\Create($argv);
-		$create->run();
+		if (is_null($argv)) {
+			$this->listCommands();
+		}
+
+		$create = new \MonitoCli\Command\Create($argv);
+		$create->handle();
 		exit;
 
 
 		$argv = getopt("f:hp:");
-		\vendor\ldm\Dev::pre($argv);
+		\MonitoLib\Dev::pre($argv);
 
 		$arg1 = isset($argv[0]) ? $argv[0] : null;
 
-		\vendor\ldm\Dev::pre($argv);
+		\MonitoLib\Dev::pre($argv);
 
-		$connector  = \vendor\ldm\Connector::getInstance();
+		$connector  = \MonitoLib\Connector::getInstance();
 		$connection = $connector->getConnection('tms');
 
 		if (is_null($connection))
@@ -47,7 +60,7 @@ class Command
 		}
 
 		$dbms  = $connector->getDbms();
-		$class = '\vendor\ldm\cli\\' . $dbms;
+		$class = '\MonitoLib\cli\\' . $dbms;
 
 		$class = new $class($connector);
 		$tables = $class->listTablesAndColumns();
@@ -57,7 +70,7 @@ class Command
 
 		foreach ($tables as $table)
 		{
-			$c = '      "' . $table['COLUMN_NAME'] . "\": \"" . \vendor\ldm\Functions::toLowerCamelCase($table['COLUMN_NAME']) . "\",\n";
+			$c = '      "' . $table['COLUMN_NAME'] . "\": \"" . \MonitoLib\Functions::toLowerCamelCase($table['COLUMN_NAME']) . "\",\n";
 
 			if ($t != $table['TABLE_NAME'])
 			{
@@ -67,7 +80,7 @@ class Command
 				}
 
 				$c = "  \"" . $table['TABLE_NAME'] . "\": {\n"
-					. "    \"className\": \"" . \vendor\ldm\Functions::toUpperCamelCase(\vendor\ldm\Functions::toSingular($table['TABLE_NAME'])) . "\",\n"
+					. "    \"className\": \"" . \MonitoLib\Functions::toUpperCamelCase(\MonitoLib\Functions::toSingular($table['TABLE_NAME'])) . "\",\n"
 					. "    \"fields\": {"
 					. "\n" . $c;
 			}
@@ -80,7 +93,7 @@ class Command
 
 		file_put_contents(LDM_CONFIG_PATH . 'tms.json', $r);
 
-		// $dao = new \vendor\ldm\cli\Dao;
+		// $dao = new \MonitoLib\cli\Dao;
 		// $dao->run();
 
 		// if (in_array($arg1, ['all', 'model']))
@@ -129,7 +142,7 @@ class Command
 	}
 	private function createDao ()
 	{
-		$connector  = \vendor\ldm\Connector::getInstance();
+		$connector  = \MonitoLib\Connector::getInstance();
 		$connection = $connector->getConnection('tms');
 
 		if (is_null($connection))
@@ -138,7 +151,7 @@ class Command
 		}
 
 		$dbms  = $connector->getDbms();
-		$class = '\vendor\ldm\cli\\' . $dbms;
+		$class = '\MonitoLib\cli\\' . $dbms;
 
 		$class = new $class($connector);
 		$tables = $class->listTablesAndColumns();
@@ -149,7 +162,7 @@ class Command
 		{
 			if ($t != $table['TABLE_NAME'])
 			{
-				$c = '_' . \vendor\ldm\Functions::toUpperCamelCase($table['TABLE_NAME']);
+				$c = '_' . \MonitoLib\Functions::toUpperCamelCase($table['TABLE_NAME']);
 
 				$f = "<?php\n"
 					. "namespace app\\dao;\n"
@@ -169,7 +182,7 @@ class Command
 	}
 	private function createDto ()
 	{
-		// $connector  = \vendor\ldm\Connector::getInstance();
+		// $connector  = \MonitoLib\Connector::getInstance();
 		// $connection = $connector->getConnection('tms');
 
 		// if (is_null($connection))
@@ -178,13 +191,13 @@ class Command
 		// }
 
 		// $dbms  = $connector->getDbms();
-		// $class = '\vendor\ldm\cli\\' . $dbms;
+		// $class = '\MonitoLib\cli\\' . $dbms;
 
 		// $class = new $class($connector);
 		// $tables = $class->listTablesAndColumns();
 
 		$tables = json_decode(file_get_contents(LDM_CONFIG_PATH . 'tms.json'));
-		// \vendor\ldm\Dev::pre($tables);
+		// \MonitoLib\Dev::pre($tables);
 
 		foreach ($tables as $tk => $tv)
 		{
@@ -195,8 +208,8 @@ class Command
 
 			foreach ($tv->fields as $field)
 			{
-				$cou = \vendor\ldm\Functions::toUpperCamelCase($field);
-				$col = \vendor\ldm\Functions::toLowerCamelCase($field);
+				$cou = \MonitoLib\Functions::toUpperCamelCase($field);
+				$col = \MonitoLib\Functions::toLowerCamelCase($field);
 				$get = 'get' . $cou;
 				$set = 'set' . $cou;
 
@@ -242,7 +255,7 @@ class Command
 	}
 	private function createModel ()
 	{
-		$connector  = \vendor\ldm\Connector::getInstance();
+		$connector  = \MonitoLib\Connector::getInstance();
 		$connection = $connector->getConnection('tms');
 
 		if (is_null($connection))
@@ -251,12 +264,12 @@ class Command
 		}
 
 		$dbms  = $connector->getDbms();
-		$class = '\vendor\ldm\cli\\' . $dbms;
+		$class = '\MonitoLib\cli\\' . $dbms;
 
 		$class = new $class($connector);
 		$tables = $class->listTables();
 
-		$modelDefault = new \vendor\ldm\Database\Mysql\Model;
+		$modelDefault = new \MonitoLib\Database\Mysql\Model;
 
 		foreach ($tables as $t)
 		{
@@ -345,7 +358,7 @@ class Command
 
 			$keys = substr($keys, 0, -1);
 
-			$c = '_' . \vendor\ldm\Functions::toUpperCamelCase($t['TABLE_NAME']);
+			$c = '_' . \MonitoLib\Functions::toUpperCamelCase($t['TABLE_NAME']);
 			$f = "<?php\n"
 				// . $this->renderComments()
 				. "\n"

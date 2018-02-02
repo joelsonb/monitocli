@@ -1,117 +1,264 @@
 <?php
-namespace MonitoLib\Commands;
+namespace MonitoCli\Command;
 
-class Create
+use GetOpt\Command;
+use GetOpt\GetOpt;
+use GetOpt\Operand;
+
+class Create extends Command
 {
-	const VERSION = '1.0.0';
-	private $argv;
-	private $command;
+	private $config;
+	private $connection;
+	private $connectionName;
+	private $namespace = 'app\\';
+	private $outputDir;
 
-	public function __construct ($argv)
-	{
-$getOpt = new \GetOpt\GetOpt();
+    public function __construct()
+    {
+        parent::__construct('create', [$this, 'handle']);
 
-// define common options
-$getOpt->addOptions([
-   
-    \GetOpt\Option::create(null, 'version', \GetOpt\GetOpt::NO_ARGUMENT)
-        ->setDescription('Show version information and quit'),
+        $this->addOperands([
+            Operand::create('object', Operand::REQUIRED)
+        ]);
+
+        $this->addOperands([
+            Operand::create('name', Operand::OPTIONAL)
+        ]);
+
+		// Connection name
+		$option = new \GetOpt\Option('c', 'connection', \GetOpt\GetOpt::REQUIRED_ARGUMENT);
+		$option->setDescription('Connection name');
+		$this->addOption($option);
+		// Origin
+		$option = new \GetOpt\Option(null, 'from-file', \GetOpt\GetOpt::NO_ARGUMENT);
+		$option->setDescription('Origin');
+		$this->addOption($option);
+
+		// Table name
+		$option = new \GetOpt\Option('t', 'table', \GetOpt\GetOpt::REQUIRED_ARGUMENT);
+		$option->setDescription('Table name');
+		$this->addOption($option);
+
+		// Column name
+		$option = new \GetOpt\Option(null, 'column', \GetOpt\GetOpt::REQUIRED_ARGUMENT);
+		$option->setDescription('Column name');
+		$this->addOption($option);
+
+		// Namespace
+		$option = new \GetOpt\Option('n', 'namespace', \GetOpt\GetOpt::REQUIRED_ARGUMENT);
+		$option->setDescription('Namespace');
+		$this->addOption($option);
+
+
+		// $optionConnection->setValidation('is_numeric');
+
+		// $this->addOption($optionConnection);
         
-    \GetOpt\Option::create('?', 'help', \GetOpt\GetOpt::NO_ARGUMENT)
-        ->setDescription('Show this help and quit'),
+        // $this->addOperands([
+        //     Operand::create('file', Operand::REQUIRED)
+        //         ->setValidation('is_readable'),
+        //     Operand::create('destination', Operand::REQUIRED)
+        //         ->setValidation('is_writable')
+        // ]);
+        
+    }
     
-]);
+    public function handle (GetOpt $getOpt)
+    {
+    	$object     = $getOpt->getOperand('object');
+    	$objectName = $getOpt->getOperand('objectName');
 
-// add simple commands
-$getOpt->addCommand(\GetOpt\Command::create('create', function () { 
-    echo 'When you see this message the setup works.' . PHP_EOL;
-})->setDescription('Check if setup works'));
+    	$fromFile       = $getOpt->getOption('from-file');
+    	$connectionName = $getOpt->getOption('connection');
+    	$namespace      = $getOpt->getOption('namespace');
+    	$table          = $getOpt->getOption('table');
+    	$column         = $getOpt->getOption('column');
 
-// add commands
-// $getOpt->addCommand(new CopyCommand());
-// $getOpt->addCommand(new MoveCommand());
-// $getOpt->addCommand(new DeleteCommand());
+    	if ($object === 'all') {
+    		// $objectList = ['controller', 'dao', 'dto', 'model'];
+    		$objectList = ['dao', 'dto', 'model'];
+    	} else {
+    		$objectList = explode(',', $object);
+    	}
+
+    	// if (!is_null($table)) {
+    	// 	$tableList = explode(',', $table);
+    	// }
+
+    	// if (!is_null($namespace)) {
+    	// 	$this->namespace = $namespace . '\\';
+    	// }
+
+    	// \MonitoLib\Dev::pre($objectList);
+
+    	if (!is_null($namespace)) {
+    		$this->namespace = $this->parseNamespace($namespace);
+    	}
+
+    	// echo "$namespace: $namespace";
+    	// exit;
+
+    	
+
+    	$connector  = \MonitoLib\Connector::getInstance();
+    	$connection = $connector->getConnection($connectionName);
+    	$connectionConfig = $connector->getConfig($connectionName);
+
+    	$this->config     = $connectionConfig;
+    	$this->connection = $connection;
+    	$this->connectionName = $connectionName;
 
 
-// process arguments and catch user errors
-try {
-    $getOpt->process();
-} catch (ArgumentException $exception) {
-    file_put_contents('php://stderr', $exception->getMessage() . PHP_EOL);
-    echo PHP_EOL . $getOpt->getHelpText();
-    exit;
-}
+		// $tableList = null;
 
-// show version and quit
-if ($getOpt->getOption('version')) {
-    echo sprintf('%s: %s' . PHP_EOL, get_class($this), self::VERSION);
-    exit;
-}
+		// if (!is_null($table))
+		// {
+		// 	$tableList = explode(',', $table);
+		// }
 
-// show help and quit
-$command = $getOpt->getCommand();
-if (!$command || $getOpt->getOption('help')) {
-    echo $getOpt->getHelpText();
-    exit;
-}
+		// \MonitoLib\Dev::pre($table);
 
-// call the requested command
-call_user_func($command->handler(), $getOpt);
-exit;
+		$class = '\MonitoCli\\' . $this->dbms($this->config->dbms);
+		$class = new $class($this->config, $this->connection);
+		$tables = $class->listTablesAndColumns($table, $column);
 
+    	// \MonitoLib\Dev::pre($tables);
 
-		$getOpt = new \GetOpt\GetOpt();
-		$getOpt->addCommands([
-		    \GetOpt\Command::create('user:delete', 'User::delete', [
-		        \GetOpt\Option::create('u', 'userId', \GetOpt\GetOpt::REQUIRED_ARGUMENT),
-		    ]),
-		]);
-		exit;
+    	// if ($fromFile && !file_exists(MONITO_CACHE_DIR . $connectionName . '.json')) {
+    	// 	$this->createFile();
+    	// }
 
-		if (is_null($argv) || !method_exists($this, $command))
-		{
-			$this->listOptions();
-		}
+    	foreach ($tables as $table) {
+    		if (isset($objectList['controller'])) {
+    			$this->createController();
+    		}
+    		if (in_array('dao', $objectList)) {
+    			if (!file_exists($this->outputDir . 'dao')) {
+    				mkdir($this->outputDir . 'dao', 0777);
+    			}
+    			$this->createDao($table);
+    		}
+    		if (in_array('dto', $objectList)) {
+    			if (!file_exists($this->outputDir . 'dto')) {
+    				mkdir($this->outputDir . 'dto', 0777);
+    			}
+    			$this->createDto($table);
+    		}
+    		if (isset($objectList['file'])) {
+    			$this->createFile();
+    		}
+    		if (in_array('model', $objectList)) {
+    			if (!file_exists($this->outputDir . 'model')) {
+    				mkdir($this->outputDir . 'model', 0777);
+    			}
+    			$this->createModel($table);
+    		}
+    	}
 
-		$this->command = $command;
-		$this->argv    = $argv;
-	}
-	private function listOptions () {
-		echo 'Command v' . self::VERSION . PHP_EOL;
-		echo 'Available commands:' . PHP_EOL;
-		echo 'create: creates classes' . PHP_EOL;
-		exit;
-	}
-	// private function create ($argv)
-	private function create ($argv)
+    	echo 'ok';
+    }
+	private function createDao ($table)
 	{
-		$argv = getopt("f:hp:");
-		\vendor\ldm\Dev::pre($argv);
+		$f = "<?php\n"
+			. "namespace {$this->namespace}dao;\n"
+			. "\n"
+			. "class {$table->getClassName()} extends \\MonitoLib\\Database\\{$this->dbms($this->config->dbms)}\\Dao\n"
+			. "{\n"
+			. "\tconst VERSION = '1.0.0';\n"
+			. "\t/**\n"
+			. "\t * 1.0.0 - " . date('Y-m-d') . "\n"
+			. "\t * initial release\n"
+			. "\t */\n";
 
-		$arg1 = isset($argv[0]) ? $argv[0] : null;
-
-		\vendor\ldm\Dev::pre($argv);
-
-		$connector  = \vendor\ldm\Connector::getInstance();
-		$connection = $connector->getConnection('tms');
-
-		if (is_null($connection))
-		{
-			throw new \Exception("Connection not configured!");
+		if (!is_null($this->connectionName)) {
+			$f .= "\tpublic function __construct ()\n"
+				. "\t{\n"
+				. "\t\t\$connector = \MonitoLib\Connector::getInstance();\n"
+				. "\t\t\$connector->setConnection('{$this->connectionName}');\n"
+				. "\t\tparent::__construct();\n"
+				. "\t}\n";
 		}
 
-		$dbms  = $connector->getDbms();
-		$class = '\vendor\ldm\cli\\' . $dbms;
+		$f .= '}';
 
-		$class = new $class($connector);
+		file_put_contents(MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dao' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
+	}
+	private function createDto ($table)
+	{
+		$p = '';
+		$g = '';
+		$s = '';
+
+		foreach ($table->getColumns() as $column) {
+			$cou = \MonitoLib\Functions::toUpperCamelCase($column->getName());
+			$col = \MonitoLib\Functions::toLowerCamelCase($column->getName());
+			$get = 'get' . $cou;
+			$set = 'set' . $cou;
+
+			$p .= "\tprivate \$$col;\n";
+			$g .= "\t/**\n"
+				. "\t* $get()\n"
+				. "\t*\n"
+				. "\t* @return \$$col\n"
+				. "\t*/\n"
+				. "\tpublic function $get () {\n"
+				. "\t\treturn \$this->$col;\n"
+				. "\t}\n";
+			$s .= "\t/**\n"
+				. "\t* $set()\n"
+				. "\t*\n"
+				. "\t* @return \$this\n"
+				. "\t*/\n"
+				. "\tpublic function $set (\$$col) {\n"
+				. "\t\t\$this->$col = \$$col;\n"
+				. "\t\treturn \$this;\n"
+				. "\t}\n";
+		}
+
+		$f = "<?php\n"
+			. "namespace {$this->namespace}dto;\n"
+			. "\n"
+			. "class {$table->getClassName()}\n"
+			. "{\n"
+			. "\tconst VERSION = '1.0.0';\n"
+			. "\t/**\n"
+			. "\t * 1.0.0 - " . date('Y-m-d') . "\n"
+			. "\t * initial release\n"
+			. "\t */\n"
+			. $p
+			. $g
+			. $s
+			. '}';
+
+		// file_put_contents(MONITO_CACHE_DIR . $table->getClassName() . '.php', $f);
+		file_put_contents(MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dto' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
+	}
+	private function createFile ()
+	{
+		$dbms  = $this->config->dbms;
+
+		switch (strtolower($dbms)) {
+		 	case 'mysql':
+		 		$dbms = 'MySQL';
+		 		break;
+		 	case 'oracle':
+		 		$dbms = 'Oracle';
+		 		break;
+		}
+
+		$class = '\MonitoCli\\' . $dbms;
+
+		$class = new $class($this->config, $this->connection);
 		$tables = $class->listTablesAndColumns();
+
+		// \MonitoLib\Dev::pre($tables);
 
 		$r = "{\r\n";
 		$t = null;
 
 		foreach ($tables as $table)
 		{
-			$c = '      "' . $table['COLUMN_NAME'] . "\": \"" . \vendor\ldm\Functions::toLowerCamelCase($table['COLUMN_NAME']) . "\",\n";
+			$c = '      "' . $table['COLUMN_NAME'] . "\": \"" . \MonitoLib\Functions::toLowerCamelCase($table['COLUMN_NAME']) . "\",\n";
 
 			if ($t != $table['TABLE_NAME'])
 			{
@@ -121,7 +268,7 @@ exit;
 				}
 
 				$c = "  \"" . $table['TABLE_NAME'] . "\": {\n"
-					. "    \"className\": \"" . \vendor\ldm\Functions::toUpperCamelCase(\vendor\ldm\Functions::toSingular($table['TABLE_NAME'])) . "\",\n"
+					. "    \"className\": \"" . \MonitoLib\Functions::toUpperCamelCase(\MonitoLib\Functions::toSingular($table['TABLE_NAME'])) . "\",\n"
 					. "    \"fields\": {"
 					. "\n" . $c;
 			}
@@ -132,298 +279,148 @@ exit;
 
 		$r = substr($r, 0, -2) . "\n    }\n  }\n}";
 
-		file_put_contents(LDM_CONFIG_PATH . 'tms.json', $r);
-
-		// $dao = new \vendor\ldm\cli\Dao;
-		// $dao->run();
-
-		// if (in_array($arg1, ['all', 'model']))
-		// {
-		// 	// lib\dm\cli\Model;
-		// }
+		file_put_contents(MONITO_CACHE_DIR . $this->config->name . '.json', $r);
 	}
-	private function createController ()
+	private function createModel ($table)
 	{
-		$tables = json_decode(file_get_contents(LDM_CONFIG_PATH . 'tms.json'));
+		$modelDefault = new \MonitoLib\Database\MySQL\Model;
 
-		foreach ($tables as $tk => $tv)
+		$output = '';
+		$keys = '';
+
+		foreach ($table->getColumns() as $column)
 		{
-			$c = '_' . $tv->className;
+			$cl = strlen($column->getName());
+			$ci = $cl;//$bi + $cl;
+			$it = floor($ci / 4);
+			$is = $ci % 4;
+			$li = "\t\t\t";//$util->indent($it, $is);
 
-			$f = "<?php\n"
-				. "namespace app\\controller;\n"
-				. "\n"
-				. "class $c extends \\vendor\\ldm\\Controller\n"
-				. "{\n"
-				. "\tconst VERSION = '1.0.0';\n"
-				. "\t/**\n"
-				. "\t * 1.0.0 - " . date('Y-m-d') . "\n"
-				. "\t * initial release\n"
-				. "\t */\n"
-				. "\tpublic function get (\$request, \$keys = null)\n"
-				. "\t{\n"
-				. "\t\t\n"
-				. "\t}\n"
-				. "\tpublic function create (\$request)\n"
-				. "\t{\n"
-				. "\t\t\n"
-				. "\t}\n"
-				. "\tpublic function delete (\$request)\n"
-				. "\t{\n"
-				. "\t\t\n"
-				. "\t}\n"
-				. "\tpublic function update (\$request)\n"
-				. "\t{\n"
-				. "\t\t\n"
-				. "\t}\n"
-				. '}';
-
-			file_put_contents(LDM_CONTROLLER_PATH . $c . '.php', $f);
-		}
-	}
-	private function createDao ()
-	{
-		$connector  = \vendor\ldm\Connector::getInstance();
-		$connection = $connector->getConnection('tms');
-
-		if (is_null($connection))
-		{
-			throw new \Exception("Connection not configured!");
-		}
-
-		$dbms  = $connector->getDbms();
-		$class = '\vendor\ldm\cli\\' . $dbms;
-
-		$class = new $class($connector);
-		$tables = $class->listTablesAndColumns();
-
-		$t = null;
-
-		foreach ($tables as $table)
-		{
-			if ($t != $table['TABLE_NAME'])
+			$output .= "\t\t'" . $column->getName() . "' => [\n";
+			
+			if ($column->getIsAuto())
 			{
-				$c = '_' . \vendor\ldm\Functions::toUpperCamelCase($table['TABLE_NAME']);
-
-				$f = "<?php\n"
-					. "namespace app\\dao;\n"
-					. "\n"
-					. "class $c extends \\vendor\\ldm\\Database\\MySQL\\Dao\n"
-					. "{\n"
-					. "\tconst VERSION = '1.0.0';\n"
-					. "\t/**\n"
-					. "\t * 1.0.0 - " . date('Y-m-d') . "\n"
-					. "\t * initial release\n"
-					. "\t */\n"
-					. '}';
-
-				file_put_contents(LDM_DAO_PATH . $c . '.php', $f);
-			}
-		}
-	}
-	private function createDto ()
-	{
-		// $connector  = \vendor\ldm\Connector::getInstance();
-		// $connection = $connector->getConnection('tms');
-
-		// if (is_null($connection))
-		// {
-		// 	throw new \Exception("Connection not configured!");
-		// }
-
-		// $dbms  = $connector->getDbms();
-		// $class = '\vendor\ldm\cli\\' . $dbms;
-
-		// $class = new $class($connector);
-		// $tables = $class->listTablesAndColumns();
-
-		$tables = json_decode(file_get_contents(LDM_CONFIG_PATH . 'tms.json'));
-		// \vendor\ldm\Dev::pre($tables);
-
-		foreach ($tables as $tk => $tv)
-		{
-			$c = '_' . $tv->className;
-			$p = '';
-			$g = '';
-			$s = '';
-
-			foreach ($tv->fields as $field)
-			{
-				$cou = \vendor\ldm\Functions::toUpperCamelCase($field);
-				$col = \vendor\ldm\Functions::toLowerCamelCase($field);
-				$get = 'get' . $cou;
-				$set = 'set' . $cou;
-
-				$p .= "\tprivate \$$col;\n";
-				$g .= "\t/**\n"
-					. "\t* $get()\n"
-					. "\t*\n"
-					. "\t* @return \$$col\n"
-					. "\t*/\n"
-					. "\tpublic function $get ()\n"
-					. "\t{\n"
-					. "\t\treturn \$this->$col;\n"
-					. "\t}\n";
-				$s .= "\t/**\n"
-					. "\t* $set()\n"
-					. "\t*\n"
-					. "\t* @return \$this\n"
-					. "\t*/\n"
-					. "\tpublic function $set (\$$col)\n"
-					. "\t{\n"
-					. "\t\t\$this->$col = \$$col;\n"
-					. "\t\treturn \$this;\n"
-					. "\t}\n";
+				$output .= "$li'auto' => true,\n";
 			}
 
-			$f = "<?php\n"
-				. "namespace app\\dto;\n"
-				. "\n"
-				. "class $c\n"
-				. "{\n"
-				. "\tconst VERSION = '1.0.0';\n"
-				. "\t/**\n"
-				. "\t * 1.0.0 - " . date('Y-m-d') . "\n"
-				. "\t * initial release\n"
-				. "\t */\n"
-				. $p
-				. $g
-				. $s
-				. '}';
-
-			file_put_contents(LDM_DTO_PATH . $c . '.php', $f);
-		}
-	}
-	private function createModel ()
-	{
-		$connector  = \vendor\ldm\Connector::getInstance();
-		$connection = $connector->getConnection('tms');
-
-		if (is_null($connection))
-		{
-			throw new \Exception("Connection not configured!");
-		}
-
-		$dbms  = $connector->getDbms();
-		$class = '\vendor\ldm\cli\\' . $dbms;
-
-		$class = new $class($connector);
-		$tables = $class->listTables();
-
-		$modelDefault = new \vendor\ldm\Database\Mysql\Model;
-
-		foreach ($tables as $t)
-		{
-			$fields = $class->listColumns($t['TABLE_NAME']);
-
-			$output = '';
-			$keys = '';
-
-			foreach ($fields as $field)
+			if ($column->getType() == 'char')
 			{
-				$cl = strlen($field->name);
-				$ci = $cl;//$bi + $cl;
-				$it = floor($ci / 4);
-				$is = $ci % 4;
-				$li = "\t\t\t";//$util->indent($it, $is);
-
-				$output .= "\t\t'" . $field->name . "' => [\n";
-				
-				if ($field->isAuto)
+				if ($column->getCharset() != $modelDefault->getDefaults('charset'))
 				{
-					$output .= "$li'auto' => true,\n";
+					$output .= "$li'charset'   => '{$column->getCharset()}',\n";
 				}
-
-				if ($field->type == 'char')
+				if ($column->getCollation() != $modelDefault->getDefaults('collation'))
 				{
-					if ($field->charset != $modelDefault->getDefaults('charset'))
-					{
-						$output .= "$li'charset'   => '{$field->charset}',\n";
-					}
-					if ($field->collation != $modelDefault->getDefaults('collation'))
-					{
-						$output .= "$li'collation' => '{$field->collation}',\n";
-					}
+					$output .= "$li'collation' => '{$column->getCollation()}',\n";
 				}
-				if (!is_null($field->defaultValue))
-				{
-					//if ()
-					//{
-					//	
-					//}
-
-					$output .= "$li'defaultValue' => '{$field->defaultValue}',\n";
-				}
-				if (!is_null($field->label))
-				{
-					$output .= "$li'label' => '{$field->label}',\n";
-				}
-				if (!is_null($field->maxLength) && $field->maxLength > 0)
-				{
-					$output .= "$li'maxLength' => {$field->maxLength},\n";
-				}
-				if ($field->isPrimary)
-				{
-					$keys .= "'" . $field->name . "',";
-					$output .= "$li'primary' => true,\n";
-				}
-				if ($modelDefault->getDefaults('required') != $field->isRequired)
-				{
-					$output .= "$li'required' => true,\n";
-				}
-				if ($modelDefault->getDefaults('type') != $field->type)
-				{
-					$output .= "$li'type' => '{$field->type}',\n";
-				}
-				if ($modelDefault->getDefaults('unique') != $field->isUnique)
-				{
-					$output .= "$li'unique' => {$field->isUnique},\n";
-				}
-				if ($modelDefault->getDefaults('unsigned') != $field->isUnsigned)
-				{
-					$output .= "$li'unsigned' => {$field->isUnsigned},\n";
-				}
-				
-
-
-
-
-
-				//'maxValue'         => 0,
-				//'minValue'         => 0,
-				//'numericPrecision' => null,
-				//'numericScale'     => null,
-
-				$output .= "\t\t],\n";
 			}
+			if (!is_null($column->getDefaultValue()))
+			{
+				//if ()
+				//{
+				//	
+				//}
 
-			$keys = substr($keys, 0, -1);
+				$output .= "$li'defaultValue' => '{$column->getDefaultValue()}',\n";
+			}
+			if (!is_null($column->getLabel()))
+			{
+				$output .= "$li'label' => '{$column->getLabel()}',\n";
+			}
+			if (!is_null($column->getMaxLength()) && $column->getMaxLength() > 0)
+			{
+				$output .= "$li'maxLength' => {$column->getMaxLength()},\n";
+			}
+			if ($column->getIsPrimary())
+			{
+				$keys .= "'" . $column->getName() . "',";
+				$output .= "$li'primary' => true,\n";
+			}
+			if ($column->getIsRequired())
+			{
+				$output .= "$li'required' => true,\n";
+			}
+			if ($modelDefault->getDefaults('type') != $column->getDatatype())
+			{
+				$output .= "$li'type' => '{$column->getDatatype()}',\n";
+			}
+			if ($modelDefault->getDefaults('unique') != $column->getIsUnique())
+			{
+				$output .= "$li'unique' => {$column->getIsUnique()},\n";
+			}
+			if ($modelDefault->getDefaults('unsigned') != $column->getIsUnsigned())
+			{
+				$output .= "$li'unsigned' => {$column->getIsUnsigned()},\n";
+			}
+		
+			
+		//'maxValue'         => 0,
+		//'minValue'         => 0,
+		//'numericPrecision' => null,
+		//'numericScale'     => null,
 
-			$c = '_' . \vendor\ldm\Functions::toUpperCamelCase($t['TABLE_NAME']);
-			$f = "<?php\n"
-				// . $this->renderComments()
-				. "\n"
-				. "namespace app\\model;\n"
-				. "\n"
-				// TODO: checks dbms to extends to right class
-				. "class $c extends \\vendor\\ldm\\Database\\MySQL\\Model\n"
-				. "{\n"
-				. "\tconst VERSION = '1.0.0';\n"
-				. "\n"
-				. "\tprotected \$tableName = '" . $t['TABLE_NAME'] . "';\n"
-				. "\n"
-				. "\tprotected \$fields = [\n"
-				. $output
-				. "\t];\n"
-				. "\n"
-				. "\tprotected \$keys = [$keys];\n"
-				. "}"
-				;
-			file_put_contents(LDM_MODEL_PATH . $c . '.php', $f);
+			$output .= "\t\t],\n";
+		}
+
+		$keys = substr($keys, 0, -1);
+
+		$c = \MonitoLib\Functions::toUpperCamelCase($table->getClassName());
+		$f = "<?php\n"
+			// . $this->renderComments()
+			. "\n"
+			. "namespace {$this->namespace}model;\n"
+			. "\n"
+			// TODO: checks dbms to extends to right class
+			. "class $c extends \\MonitoLib\\Database\\MySQL\\Model\n"
+			. "{\n"
+			. "\tconst VERSION = '1.0.0';\n"
+			. "\n"
+			. "\tprotected \$tableName = '" . $table->getTableName() . "';\n"
+			. "\n"
+			. "\tprotected \$fields = [\n"
+			. $output
+			. "\t];\n"
+			. "\n"
+			. "\tprotected \$keys = [$keys];\n"
+			. "}"
+			;
+		// file_put_contents(MONITO_CACHE_DIR . $c . '.php', $f);
+			file_put_contents(MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'model' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
+	}
+	private function dbms ($dbms)
+	{
+    	$dbms = strtolower($dbms);
+
+		if ($dbms === 'mysql') {
+			return 'MySQL';
+		}
+		if ($dbms === 'oracle') {
+			return 'Oracle';
 		}
 	}
-	public function run ()
+	private function parseNamespace ($namespace)
 	{
-		$this->{$this->command}($this->argv);
+		$namespace = trim($namespace);
+		$parts = explode('\\', $namespace);
+		$path = MONITO_SITE_PATH;
+		$namespace = '';
+
+		foreach ($parts as $p) {
+			if ($p != '') {
+				$path .= $p . DIRECTORY_SEPARATOR;
+
+				if (!file_exists($path)) {
+					mkdir($path, 0777);
+				}
+
+				// mkdir()
+
+				$namespace .= $p . '\\';
+			}
+		}
+
+		$this->outputDir = $path;
+
+		return $namespace;
 	}
 }
