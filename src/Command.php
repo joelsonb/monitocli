@@ -51,7 +51,7 @@ class Command
 
 		\MonitoLib\Dev::pre($argv);
 
-		$connector  = \MonitoLib\Connector::getInstance();
+		$connector  = \MonitoLib\Database\Connector::getInstance();
 		$connection = $connector->getConnection('tms');
 
 		if (is_null($connection))
@@ -142,7 +142,7 @@ class Command
 	}
 	private function createDao ()
 	{
-		$connector  = \MonitoLib\Connector::getInstance();
+		$connector  = \MonitoLib\Database\Connector::getInstance();
 		$connection = $connector->getConnection('tms');
 
 		if (is_null($connection))
@@ -182,7 +182,7 @@ class Command
 	}
 	private function createDto ()
 	{
-		// $connector  = \MonitoLib\Connector::getInstance();
+		// $connector  = \MonitoLib\Database\Connector::getInstance();
 		// $connection = $connector->getConnection('tms');
 
 		// if (is_null($connection))
@@ -255,7 +255,7 @@ class Command
 	}
 	private function createModel ()
 	{
-		$connector  = \MonitoLib\Connector::getInstance();
+		$connector  = \MonitoLib\Database\Connector::getInstance();
 		$connection = $connector->getConnection('tms');
 
 		if (is_null($connection))
@@ -269,7 +269,7 @@ class Command
 		$class = new $class($connector);
 		$tables = $class->listTables();
 
-		$modelDefault = new \MonitoLib\Database\Mysql\Model;
+		$modelDefault = new \MonitoLib\Database\Model\MySQL;
 
 		foreach ($tables as $t)
 		{

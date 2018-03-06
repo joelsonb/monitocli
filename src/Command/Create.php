@@ -100,8 +100,8 @@ class Create extends Command
 
     	
 
-    	$connector  = \MonitoLib\Connector::getInstance();
-    	$connection = $connector->getConnection($connectionName);
+    	$connector  = \MonitoLib\Database\Connector::getInstance();
+    	$connection = $connector->getConnection($connectionName)->getConnection();
     	$connectionConfig = $connector->getConfig($connectionName);
 
     	$this->config     = $connectionConfig;
@@ -117,6 +117,8 @@ class Create extends Command
 		// }
 
 		// \MonitoLib\Dev::pre($table);
+
+		// \MonitoLib\Dev::pre($this->config);
 
 		$class = '\MonitoCli\\' . $this->dbms($this->config->dbms);
 		$class = new $class($this->config, $this->connection);
@@ -159,10 +161,16 @@ class Create extends Command
     }
 	private function createDao ($table)
 	{
+		$filePath = MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dao' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php';
+
+		if (file_exists($filePath)) {
+			return false;
+		}
+
 		$f = "<?php\n"
 			. "namespace {$this->namespace}dao;\n"
 			. "\n"
-			. "class {$table->getClassName()} extends \\MonitoLib\\Database\\{$this->dbms($this->config->dbms)}\\Dao\n"
+			. "class {$table->getClassName()} extends \\MonitoLib\\Database\\Dao\\{$this->dbms($this->config->dbms)}\n"
 			. "{\n"
 			. "\tconst VERSION = '1.0.0';\n"
 			. "\t/**\n"
@@ -173,7 +181,7 @@ class Create extends Command
 		if (!is_null($this->connectionName)) {
 			$f .= "\tpublic function __construct ()\n"
 				. "\t{\n"
-				. "\t\t\$connector = \MonitoLib\Connector::getInstance();\n"
+				. "\t\t\$connector = \MonitoLib\Database\Connector::getInstance();\n"
 				. "\t\t\$connector->setConnection('{$this->connectionName}');\n"
 				. "\t\tparent::__construct();\n"
 				. "\t}\n";
@@ -181,7 +189,7 @@ class Create extends Command
 
 		$f .= '}';
 
-		file_put_contents(MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dao' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
+		file_put_contents($filePath, $f);
 	}
 	private function createDto ($table)
 	{
@@ -283,7 +291,7 @@ class Create extends Command
 	}
 	private function createModel ($table)
 	{
-		$modelDefault = new \MonitoLib\Database\MySQL\Model;
+		$modelDefault = new \MonitoLib\Database\Model\MySQL;
 
 		$output = '';
 		$keys = '';
@@ -371,7 +379,7 @@ class Create extends Command
 			. "namespace {$this->namespace}model;\n"
 			. "\n"
 			// TODO: checks dbms to extends to right class
-			. "class $c extends \\MonitoLib\\Database\\MySQL\\Model\n"
+			. "class $c extends \\MonitoLib\\Database\\Model\\MySQL\n"
 			. "{\n"
 			. "\tconst VERSION = '1.0.0';\n"
 			. "\n"
@@ -391,12 +399,13 @@ class Create extends Command
 	{
     	$dbms = strtolower($dbms);
 
-		if ($dbms === 'mysql') {
-			return 'MySQL';
-		}
-		if ($dbms === 'oracle') {
-			return 'Oracle';
-		}
+    	switch ($dbms) {
+    		case 'mysql':
+    		case 'mysql-pdo':
+    			return 'MySQL';
+    		case 'oracle':
+				return 'Oracle';
+    	}
 	}
 	private function parseNamespace ($namespace)
 	{
