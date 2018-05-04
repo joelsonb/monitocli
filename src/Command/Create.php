@@ -161,7 +161,7 @@ class Create extends Command
     }
 	private function createDao ($table)
 	{
-		$filePath = MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dao' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php';
+		$filePath = App::getRootPath() . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dao' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php';
 
 		if (file_exists($filePath)) {
 			return false;
@@ -239,7 +239,7 @@ class Create extends Command
 			. '}';
 
 		// file_put_contents(MONITO_CACHE_DIR . $table->getClassName() . '.php', $f);
-		file_put_contents(MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dto' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
+		file_put_contents(App::getRootPath() . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'dto' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
 	}
 	private function createFile ()
 	{
@@ -287,7 +287,7 @@ class Create extends Command
 
 		$r = substr($r, 0, -2) . "\n    }\n  }\n}";
 
-		file_put_contents(MONITO_CACHE_DIR . $this->config->name . '.json', $r);
+		file_put_contents(App::getCachePath() . $this->config->name . '.json', $r);
 	}
 	private function createModel ($table)
 	{
@@ -393,7 +393,7 @@ class Create extends Command
 			. "}"
 			;
 		// file_put_contents(MONITO_CACHE_DIR . $c . '.php', $f);
-			file_put_contents(MONITO_SITE_PATH . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'model' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
+			file_put_contents(App::getRootPath() . str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace) . 'model' . DIRECTORY_SEPARATOR . $table->getClassName() . '.php', $f);
 	}
 	private function dbms ($dbms)
 	{
@@ -411,7 +411,7 @@ class Create extends Command
 	{
 		$namespace = trim($namespace);
 		$parts = explode('\\', $namespace);
-		$path = MONITO_SITE_PATH;
+		$path = App::getRootPath();
 		$namespace = '';
 
 		foreach ($parts as $p) {
