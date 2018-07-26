@@ -19,7 +19,7 @@ class Dto
 
 		$this->data = $array;
 
-		if (!file_exists(App::getCachePath() . "dto{$this->crc}.php")) {
+		if (!file_exists(MONITO_SITE_PATH . 'cache' . DIRECTORY_SEPARATOR . "dto{$this->crc}.php")) {
 			$this->createDto($this->keys);
 		}
 	}
@@ -40,8 +40,7 @@ class Dto
 		$get = '';
 		$set = '';
 
-		foreach ($array as $f)
-		{
+		foreach ($array as $f) {
 			$f = \vendor\ldm\Functions::toLowerCamelCase($f);
 			$g = 'get' . ucfirst($f);
 			$s = 'set' . ucfirst($f);
@@ -74,7 +73,7 @@ class Dto
 
 		$output .= $prp . $get . $set . "}";
 
-		if (!@file_put_contents(App::getCachePath() . "dto{$this->crc}.php", $output))
+		if (!@file_put_contents(MONITO_SITE_PATH . 'cache' . DIRECTORY_SEPARATOR . "dto{$this->crc}.php", $output))
 		{
 			throw new \Exception("Error while saving cache data!");
 		}

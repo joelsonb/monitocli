@@ -4,6 +4,7 @@ namespace MonitoCli\Command;
 use GetOpt\Command;
 use GetOpt\GetOpt;
 use GetOpt\Operand;
+use \MonitoLib\App;
 
 class JsonSchema extends Command
 {

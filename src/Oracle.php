@@ -77,8 +77,7 @@ class Oracle
 		$sth = $this->connection->prepare($sql);
 		$sth->bindParam(1, $this->dbName);
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sth->bindParam(2, $tableName);
 		}
 
@@ -88,10 +87,8 @@ class Oracle
 	
 		$data = array();
 		
-		foreach ($columns as $c)
-		{
-			switch ($c['DATA_TYPE'])
-			{
+		foreach ($columns as $c) {
+			switch ($c['DATA_TYPE']) {
 				case 'char':
 				case 'varchar':
 				case 'text':
@@ -164,25 +161,25 @@ class Oracle
 			// $columnDto->setIsForeign($columnIsForeign);
 			// $columnDto->setActive($columnActive);
 			$columnDto = new \stdClass;
-			$columnDto->name = $columnName;
-			$columnDto->type = $columnType;
-			$columnDto->label = $columnLabel;
-			$columnDto->dataType = $columnDataType;
-			$columnDto->defaultValue = $columnDefault;
-			$columnDto->maxLength = $columnMaxLength;
+			$columnDto->name             = $columnName;
+			$columnDto->type             = $columnType;
+			$columnDto->label            = $columnLabel;
+			$columnDto->dataType         = $columnDataType;
+			$columnDto->defaultValue     = $columnDefault;
+			$columnDto->maxLength        = $columnMaxLength;
 			$columnDto->numericPrecision = $columnPrecisionSize;
-			$columnDto->numericScale = $columnScale;
-			$columnDto->collation = $columnCollation;
-			$columnDto->charset = $columnCharset;
-			$columnDto->isPrimary = $columnIsPrimary;
-			$columnDto->isRequired = $columnIsRequired;
-			$columnDto->isBinary = $columnIsBinary;
-			$columnDto->isUnsigned = $columnIsUnsigned;
-			$columnDto->isUnique = $columnIsUnique;
-			$columnDto->isZerofilled = $columnIsZerofilled;
-			$columnDto->isAuto = $columnIsAuto;
-			$columnDto->isForeign = $columnIsForeign;
-			$columnDto->active = $columnActive;
+			$columnDto->numericScale     = $columnScale;
+			$columnDto->collation        = $columnCollation;
+			$columnDto->charset          = $columnCharset;
+			$columnDto->isPrimary        = $columnIsPrimary;
+			$columnDto->isRequired       = $columnIsRequired;
+			$columnDto->isBinary         = $columnIsBinary;
+			$columnDto->isUnsigned       = $columnIsUnsigned;
+			$columnDto->isUnique         = $columnIsUnique;
+			$columnDto->isZerofilled     = $columnIsZerofilled;
+			$columnDto->isAuto           = $columnIsAuto;
+			$columnDto->isForeign        = $columnIsForeign;
+			$columnDto->active           = $columnActive;
 
 			//$columnDao    = \dao\Factory::createColumn();
 			//$columnObject = $columnDao->getByName($tableObject->getId(), $columnName);
@@ -322,6 +319,8 @@ class Oracle
 		$currentTable = null;
 
 		while ($r = oci_fetch_assoc($stt)) {
+			// \MonitoLib\Dev::pre($r);
+
 			if ($currentTable !== $r['TABLE_NAME']) {
 				$tableDto = new \MonitoCli\Database\Dto\Table;
 				$tableDto->setTableName($tableName);
@@ -329,20 +328,41 @@ class Oracle
 				$data[] = \MonitoCli\Database\Helper::table($tableDto);
 			}
 
+			$dataType = $r['DATA_TYPE'];
+			$dataScale = $r['DATA_SCALE'];
+
+			if ($dataType == 'NUMBER') {
+				$type = 'int';
+				if ($dataScale > 0) {
+					$type = 'float';
+				}
+			} elseif ($dataType == 'DATE') {
+				$type = 'date';
+			} else {
+				$type = 'varchar';
+			}
+
+			$defaultValue = trim(trim(trim($r['DATA_DEFAULT']), "'"));
+
+			if ($defaultValue == 'NULL') {
+				$defaultValue = null;
+			}
+
+
 			$columnDto = new \MonitoCli\Database\Dto\Column;
 			$columnDto->setTable($r['TABLE_NAME']);
 			$columnDto->setName($r['COLUMN_NAME']);
-			// $columnDto->setType($column['type']);
+			$columnDto->setType($type);
 			// $columnDto->setLabel($column['label']);
-			// $columnDto->setDatatype($column['dataType']);
-			// $columnDto->setDefaultvalue($column['defaultValue']);
+			$columnDto->setDataType($type);
+			$columnDto->setDefaultValue($defaultValue);
 			// $columnDto->setMaxlength($column['maxLength']);
 			// $columnDto->setNumericprecision($column['numericPrecision']);
 			// $columnDto->setNumericscale($column['numericScale']);
 			// $columnDto->setCollation($column['collation']);
 			// $columnDto->setCharset($column['charset']);
 			// $columnDto->setIsprimary($column['isPrimary']);
-			$columnDto->setIsrequired($r['NULLABLE'] == 'Y' ? 1 : 0);
+			$columnDto->setIsrequired($r['NULLABLE'] == 'Y' ? 0 : 1);
 			// $columnDto->setIsbinary($column['isBinary']);
 			// $columnDto->setIsunsigned($column['isUnsigned']);
 			// $columnDto->setIsunique($column['isUnique']);
