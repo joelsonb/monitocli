@@ -19,8 +19,7 @@ class Dto
 
 		$this->data = $array;
 
-		if (!file_exists(MONITO_SITE_PATH . 'cache' . DIRECTORY_SEPARATOR . "dto{$this->crc}.php"))
-		{
+		if (!file_exists(MONITO_SITE_PATH . 'cache' . DIRECTORY_SEPARATOR . "dto{$this->crc}.php")) {
 			$this->createDto($this->keys);
 		}
 	}
@@ -41,8 +40,7 @@ class Dto
 		$get = '';
 		$set = '';
 
-		foreach ($array as $f)
-		{
+		foreach ($array as $f) {
 			$f = \vendor\ldm\Functions::toLowerCamelCase($f);
 			$g = 'get' . ucfirst($f);
 			$s = 'set' . ucfirst($f);

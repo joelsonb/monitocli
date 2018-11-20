@@ -98,32 +98,28 @@ class Helper
 	}
 	static public function toSingular ($string)
 	{
-		if (strtolower($string) == 'status')
-		{
+		if (strtolower($string) == 'status') {
 			return $string;
 		}
-		if (preg_match('/ens$/', $string))
-		{
+		if (strtolower($string) == 'tokens') {
+			return 'token';
+		}
+		if (preg_match('/ens$/', $string)) {
 			$string = substr($string, 0, -3) . 'em';
 		}
-		if (preg_match('/oes$/', $string))
-		{
+		if (preg_match('/oes$/', $string)) {
 			$string = substr($string, 0, -3) . 'ao';
 		}
-		if (preg_match('/ais$/', $string))
-		{
+		if (preg_match('/ais$/', $string)) {
 			$string = substr($string, 0, -3) . 'al';
 		}
-		if (preg_match('/res$/', $string))
-		{
+		if (preg_match('/res$/', $string)) {
 			$string = substr($string, 0, -2);
 		}
-		if (preg_match('/tchs$/', $string))
-		{
+		if (preg_match('/tchs$/', $string)) {
 			$string = substr($string, 0, -1);
 		}
-		if (preg_match('/[adeiouglmnprt]s$/', $string))
-		{
+		if (preg_match('/[adeiouglmnprt]s$/', $string)) {
 			$string = substr($string, 0, -1);
 		}
 
