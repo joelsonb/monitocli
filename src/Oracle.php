@@ -271,7 +271,9 @@ class Oracle
 	public function listTablesAndColumns ($tableName = null, $columns = null)
 	{
 		$sql = 'SELECT LOWER(t.table_name) AS table_name, LOWER(c.column_name) AS column_name, c.data_type, c.data_precision, c.data_scale, c.nullable, c.column_id, c.default_length, '
-			 . 'c.data_default, c.character_set_name, c.char_length FROM user_tables t '
+			. 'c.data_default, c.character_set_name, c.char_length '
+			. 'FROM (SELECT view_name AS table_name FROM user_views '
+			. 'UNION ALL SELECT table_name FROM user_tables) t '
 			. 'INNER JOIN user_tab_columns c ON t.table_name = c.table_name ';
 
 		if (!is_null($tableName)) {
