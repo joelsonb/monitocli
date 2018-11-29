@@ -58,18 +58,14 @@ class Oracle
 	{
 		$sql = 'SELECT * FROM user_tab_columns';
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sql .= ' AND TABLE_NAME ';
 
-			if (is_array($tableName))
-			{
+			if (is_array($tableName)) {
 				$tableName  = "'" . implode("','", $tableName) . "'";
 				$sql       .= "IN ($tableName)";
 				$tableName  = NULL;
-			}
-			else
-			{
+			} else {
 				$sql .= '= ?';
 			}
 		}
@@ -202,18 +198,14 @@ class Oracle
 	{
 		$sql = 'SELECT * FROM user_tables';
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sql .= ' WHERE TABLE_NAME ';
 
-			if (is_array($tableName))
-			{
+			if (is_array($tableName)) {
 				$tableName  = "'" . implode("','", $tableName) . "'";
 				$sql       .= "IN ($tableName)";
 				$tableName  = NULL;
-			}
-			else
-			{
+			} else {
 				$sql .= '= ?';
 			}
 		}
@@ -221,8 +213,7 @@ class Oracle
 		$sth = $this->conn->prepare($sql);
 		$sth->bindParam(1, $this->dbName);
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sth->bindParam(2, $tableName);
 		}
 
@@ -232,10 +223,8 @@ class Oracle
 
 		$data = array();
 
-		foreach ($relations as $r)
-		{
-			if (!is_null($r['REFERENCED_TABLE_NAME']))
-			{
+		foreach ($relations as $r) {
+			if (!is_null($r['REFERENCED_TABLE_NAME'])) {
 				$data[] = array(
 								'tableNameSource'       => $r['TABLE_NAME'],
 								'columnNameSource'      => $r['COLUMN_NAME'],
@@ -250,7 +239,8 @@ class Oracle
 	}
 	public function listTables ($tableName = NULL)
 	{
-		$sql = 'SELECT table_name FROM user_tables ';
+		$sql = 'SELECT table_name FROM (SELECT view_name AS table_name FROM user_views '
+			. 'UNION ALL SELECT table_name FROM user_tables) ';
 
 		if (!is_null($tableName)) {
 			$sql .= 'WHERE UPPER(table_name) IN (UPPER(:tablename)) ';
