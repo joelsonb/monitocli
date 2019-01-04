@@ -8,6 +8,7 @@ use MonitoLib\App;
 
 class Create extends Command
 {
+    const VERSION = '1.0.0';
     private $config;
     private $connection;
     private $connectionName;
@@ -49,7 +50,10 @@ class Create extends Command
         $option = new \GetOpt\Option('n', 'namespace', \GetOpt\GetOpt::REQUIRED_ARGUMENT);
         $option->setDescription('Namespace');
         $this->addOption($option);
-
+        // Replace files
+        $option = new \GetOpt\Option('r', 'replace', \GetOpt\GetOpt::NO_ARGUMENT);
+        $option->setDescription('Replace files');
+        $this->addOption($option);
 
         // $optionConnection->setValidation('is_numeric');
 
@@ -198,105 +202,113 @@ class Create extends Command
             . "     * 1.0.0 - " . date('Y-m-d') . "\n"
             . "     * initial release\n"
             . "     */\n"
-            . "\n"
-            . "    public function create ()\n"
-            . "    {\n"
-            . "        \$json = \$this->request->getJson();\n"
-            . "\n"
-            . "        // Valida o json recebido\n"
-            . "        if (!is_null(\$errors = \$this->validateJson(\$json, App::getStoragePath('schemas/json') . '{$table->getObjectName()}_create.json'))) {\n"
-            . "            throw new \MonitoLib\Exception\BadRequest('Não foi possível validar o schema!', \$errors);\n"
-            . "        }\n"
-            . "\n"
-            . "        \${$table->getObjectName()}Dao = new \\{$this->namespace}dao\\{$table->getClassName()};\n"
-            . "        // \${$table->getObjectName()}Dto = \${$table->getObjectName()}Dao->get();\n"
-            . "\n"
-            . "        // if (!is_null(\${$table->getObjectName()}Dto)) {\n"
-            . "        //     throw new \MonitoLib\Exception\BadRequest('Registro já existe!');\n"
-            . "        // }\n"
-            . "\n"
-            . "        \${$table->getObjectName()}Dto = new \\{$this->namespace}dto\\{$table->getClassName()};\n";
+            . "\n";
 
-        $ml = 0;
+        if ($table->getTableType() === 'table') {
+            $f .= "    public function create ()\n"
+                . "    {\n"
+                . "        \$json = \$this->request->getJson();\n"
+                . "\n"
+                . "        // Valida o json recebido\n"
+                . "        if (!is_null(\$errors = \$this->validateJson(\$json, App::getStoragePath('schemas/json') . '{$table->getObjectName()}_create.json'))) {\n"
+                . "            throw new \MonitoLib\Exception\BadRequest('Não foi possível validar o schema!', \$errors);\n"
+                . "        }\n"
+                . "\n"
+                . "        \${$table->getObjectName()}Dao = new \\{$this->namespace}dao\\{$table->getClassName()};\n"
+                . "        // \${$table->getObjectName()}Dto = \${$table->getObjectName()}Dao->get();\n"
+                . "\n"
+                . "        // if (!is_null(\${$table->getObjectName()}Dto)) {\n"
+                . "        //     throw new \MonitoLib\Exception\BadRequest('Registro já existe!');\n"
+                . "        // }\n"
+                . "\n"
+                . "        \${$table->getObjectName()}Dto = new \\{$this->namespace}dto\\{$table->getClassName()};\n";
 
-        foreach ($table->getColumns() as $column) {
-            // \MonitoLib\Dev::pre($column);
-            $c = \MonitoLib\Functions::toLowerCamelCase($column->getName());
-            if (!in_array($column->getName(), ['upd_time', 'upd_user_id']) && !$column->getIsPrimary()) {
-                $value = "\$json->{$c}";
+            $ml = 0;
 
-                if ($column->getName() == 'ins_time') {
-                    $value = "date('Y-m-d H:i:s')";
+            foreach ($table->getColumns() as $column) {
+                // \MonitoLib\Dev::pre($column);
+                $c = \MonitoLib\Functions::toLowerCamelCase($column->getName());
+                if (!in_array($column->getName(), ['upd_time', 'upd_user_id']) && !$column->getIsPrimary()) {
+                    $value = "\$json->{$c}";
+
+                    if ($column->getName() == 'ins_time') {
+                        $value = "date('Y-m-d H:i:s')";
+                    }
+                    if ($column->getName() == 'ins_user_id') {
+                        $value = "User::getId()";
+                    }
+
+                    $f .= "        \${$table->getObjectName()}Dto->set" . ucfirst($c) . "($value);\n";
                 }
-                if ($column->getName() == 'ins_user_id') {
-                    $value = "User::getId()";
-                }
 
-                $f .= "        \${$table->getObjectName()}Dto->set" . ucfirst($c) . "($value);\n";
+                if (strlen($c) > $ml) {
+                    $ml = strlen($c);
+                }
             }
 
-            if (strlen($c) > $ml) {
-                $ml = strlen($c);
-            }
+            $f .= "        \${$table->getObjectName()}Dto = \${$table->getObjectName()}Dao->insert(\${$table->getObjectName()}Dto);\n"
+                . "\n"
+                . "        \$this->response->setData(\$this->toArray(\${$table->getObjectName()}Dto))\n"
+                . "            ->setHttpResponseCode(201);\n"
+                . "    }\n";
         }
 
-        $f .= "        \${$table->getObjectName()}Dto = \${$table->getObjectName()}Dao->insert(\${$table->getObjectName()}Dto);\n"
-            . "\n"
-            . "        \$this->response->setData(\$this->toArray(\${$table->getObjectName()}Dto))\n"
-            . "            ->setHttpResponseCode(201);\n"
-            . "    }\n"
-            . "    public function dao ()\n"
-            . "    {\n"
-            . "        \${$objectName}Dao = new \\{$this->namespace}dao\\{$className};\n"
-            . "\n"
-            . "        // Lista os campos do filtro\n"
-            . "        \$params = [\n";
+        // $f .= "    public function dao ()\n"
+        //     . "    {\n"
+        //     . "        \${$objectName}Dao = new \\{$this->namespace}dao\\{$className};\n"
+        //     . "\n"
+        //     . "        // Lista os campos do filtro\n"
+        //     . "        \$params = [\n";
 
-        $fs = '';
+        // $fs = '';
 
-        foreach ($table->getColumns() as $column) {
-            $fs .= "            '" . str_pad(str_replace('_', '', $column->getName() . '\''), $ml + 1) .  " => '{$column->getName()}', \n";
+        // foreach ($table->getColumns() as $column) {
+        //     $fs .= "            '" . str_pad(str_replace('_', '', $column->getName() . '\''), $ml + 1) .  " => '{$column->getName()}', \n";
+        // }
+
+        // $f .= "$fs"
+        //     . "        ];\n"
+        //     . "\n"
+        //     . "        // Lista os campos que podem ser ordenados\n"
+        //     . "        \$sort = [\n"
+        //     . "$fs"
+        //     . "        ];\n"
+        //     . "\n"
+        //     . "        \$queryString = array_change_key_case(\$this->request->getQueryString());\n"
+        //     . "\n"
+        //     . "        foreach (\$queryString as \$key => \$value) {\n"
+        //     . "            if (isset(\$params[\$key])) {\n"
+        //     . "                \${$objectName}Dao->andEqual(\$params[\$key], \$value);\n"
+        //     . "            }\n"
+        //     . "            if (strtolower(\$key) === 'orderby') {\n"
+        //     . "                foreach (\$value as \$v) {\n"
+        //     . "                    \$parts = explode(',', \$v);\n"
+        //     . "\n"
+        //     . "                    if (isset(\$sort[strtolower(\$parts[0])])) {\n"
+        //     . "                        \${$objectName}Dao->orderBy(\$sort[strtolower(\$parts[0])], isset(\$parts[1]) ? \$parts[1] : 'ASC');\n"
+        //     . "                    }\n"
+        //     . "                }\n"
+        //     . "            }\n"
+        //     . "        }\n"
+        //     . "\n"
+        //     . "        return \${$objectName}Dao;\n"
+        //     . "    }\n";
+
+        if ($table->getTableType() === 'table') {
+            $f .= "    public function delete (\$id)\n"
+                . "    {\n"
+                . "        \${$table->getObjectName()}Dao = new \\{$this->namespace}dao\\{$table->getClassName()};\n"
+                . "        \$deleted = \${$table->getObjectName()}Dao->andEqual('id', \$id)->delete();\n"
+                . "\n"
+                . "        if (\$deleted > 0) {\n"
+                . "            \$this->response->setHttpResponseCode(204);\n"
+                . "        } else {\n"
+                . "            throw new \MonitoLib\Exception\BadRequest('Não foi possível deletar!');\n"
+                . "        }\n"
+                . "    }\n";
         }
 
-        $f .= "$fs"
-            . "        ];\n"
-            . "\n"
-            . "        // Lista os campos que podem ser ordenados\n"
-            . "        \$sort = [\n"
-            . "$fs"
-            . "        ];\n"
-            . "\n"
-            . "        \$queryString = array_change_key_case(\$this->request->getQueryString());\n"
-            . "\n"
-            . "        foreach (\$queryString as \$key => \$value) {\n"
-            . "            if (isset(\$params[\$key])) {\n"
-            . "                \${$objectName}Dao->andEqual(\$params[\$key], \$value);\n"
-            . "            }\n"
-            . "            if (strtolower(\$key) === 'orderby') {\n"
-            . "                foreach (\$value as \$v) {\n"
-            . "                    \$parts = explode(',', \$v);\n"
-            . "\n"
-            . "                    if (isset(\$sort[strtolower(\$parts[0])])) {\n"
-            . "                        \${$objectName}Dao->orderBy(\$sort[strtolower(\$parts[0])], isset(\$parts[1]) ? \$parts[1] : 'ASC');\n"
-            . "                    }\n"
-            . "                }\n"
-            . "            }\n"
-            . "        }\n"
-            . "\n"
-            . "        return \${$objectName}Dao;\n"
-            . "    }\n"
-            . "    public function delete (\$id)\n"
-            . "    {\n"
-            . "        \${$table->getObjectName()}Dao = new \\{$this->namespace}dao\\{$table->getClassName()};\n"
-            . "        \$deleted = \${$table->getObjectName()}Dao->andEqual('id', \$id)->delete();\n"
-            . "\n"
-            . "        if (\$deleted > 0) {\n"
-            . "            \$this->response->setHttpResponseCode(204);\n"
-            . "        } else {\n"
-            . "            throw new \MonitoLib\Exception\BadRequest('Não foi possível deletar!');\n"
-            . "        }\n"
-            . "    }\n"
-            . "    public function get (\$id)\n"
+        $f .= "    public function get (\$id)\n"
             . "    {\n"
             . "        \${$table->getObjectName()}Dao = new \\{$this->namespace}dao\\{$table->getClassName()};\n"
             . "        \${$table->getObjectName()}Dto = \${$table->getObjectName()}Dao->andEqual('id', \$id)->get();\n"
@@ -309,61 +321,67 @@ class Create extends Command
             . "    }\n"
             . "    public function list ()\n"
             . "    {\n"
-            . "        \${$objectName}Ds  = \$this->dao()->dataset();\n"
+            // . "        \${$objectName}Ds  = \$this->dao()->dataset();\n"
+            . "        \${$table->getObjectName()}Dao = new \\{$this->namespace}dao\\{$table->getClassName()};\n"
+            . "        \${$objectName}Ds  = \${$objectName}Dao->dataset();\n"
             . "\n"
             . "        \${$objectName}Ds['data'] = \$this->toArray(\${$objectName}Ds['data']);\n"
             . "        \$this->response->setDataset(\${$objectName}Ds);\n"
-            . "    }\n"
-            . "    public function update (\$id)\n"
-            . "    {\n"
-            . "        \$json = \$this->request->getJson();\n"
-            . "\n"
-            . "        // Valida o json recebido\n"
-            . "        if (!is_null(\$errors = \$this->validateJson(\$json, App::getStoragePath('schemas/json') . '{$objectName}_patch.json'))) {\n"
-            . "            throw new \MonitoLib\Exception\BadRequest('Não foi possível validar o schema!', \$errors);\n"
-            . "        }\n"
-            . "\n"
-            . "        \${$objectName}Dao = new \\{$this->namespace}dao\\{$className};\n"
-            . "        \${$objectName}Dto = \${$objectName}Dao->andEqual('id', \$id)->get();\n"
-            . "\n"
-            . "        if (is_null(\${$objectName}Dto)) {\n"
-            . "            throw new \MonitoLib\Exception\NotFound('Registro não encontrado!');\n"
-            . "        }\n"
-            . "\n";
+            . "    }\n";
 
-            foreach ($table->getColumns() as $column) {
-                $c = \MonitoLib\Functions::toLowerCamelCase($column->getName());
-                $s = 'set' . ucfirst($c);
+        if ($table->getTableType() === 'table') {
+            $f .= "    public function update (\$id)\n"
+                . "    {\n"
+                . "        \$json = \$this->request->getJson();\n"
+                . "\n"
+                . "        // Valida o json recebido\n"
+                . "        if (!is_null(\$errors = \$this->validateJson(\$json, App::getStoragePath('schemas/json') . '{$objectName}_patch.json'))) {\n"
+                . "            throw new \MonitoLib\Exception\BadRequest('Não foi possível validar o schema!', \$errors);\n"
+                . "        }\n"
+                . "\n"
+                . "        \${$objectName}Dao = new \\{$this->namespace}dao\\{$className};\n"
+                . "        \${$objectName}Dto = \${$objectName}Dao->andEqual('id', \$id)->get();\n"
+                . "\n"
+                . "        if (is_null(\${$objectName}Dto)) {\n"
+                . "            throw new \MonitoLib\Exception\NotFound('Registro não encontrado!');\n"
+                . "        }\n"
+                . "\n";
 
-                if (!in_array($column->getName(), ['ins_time', 'ins_user_id']) && !$column->getIsPrimary()) {
-                    if (in_array($column->getName(), ['upd_time', 'upd_user_id'])) {
-                        if ($column->getName() == 'upd_time') {
-                            $value = "date('Y-m-d H:i:s')";
+                foreach ($table->getColumns() as $column) {
+                    $c = \MonitoLib\Functions::toLowerCamelCase($column->getName());
+                    $s = 'set' . ucfirst($c);
+
+                    if (!in_array($column->getName(), ['ins_time', 'ins_user_id']) && !$column->getIsPrimary()) {
+                        if (in_array($column->getName(), ['upd_time', 'upd_user_id'])) {
+                            if ($column->getName() == 'upd_time') {
+                                $value = "date('Y-m-d H:i:s')";
+                            }
+                            if ($column->getName() == 'upd_user_id') {
+                                $value = "User::getId()";
+                            }
+
+                            $f .= "        \${$objectName}Dto->{$s}($value);\n"
+                                . "\n";
+                        } else {
+                            $f .= "        if (isset(\$json->{$c})) {\n"
+                                . "            \${$objectName}Dto->{$s}(\$json->{$c});\n"
+                                . "        }\n"
+                                . "\n";
                         }
-                        if ($column->getName() == 'upd_user_id') {
-                            $value = "User::getId()";
-                        }
-
-                        $f .= "        \${$objectName}Dto->{$s}($value);\n"
-                            . "\n";
-                    } else {
-                        $f .= "        if (isset(\$json->{$c})) {\n"
-                            . "            \${$objectName}Dto->{$s}(\$json->{$c});\n"
-                            . "        }\n"
-                            . "\n";
                     }
                 }
+
+                $f .= "        \$updated = \${$objectName}Dao->update(\${$objectName}Dto);\n"
+                    . "\n"
+                    . "        if (\$updated > 0) {\n"
+                    . "            \$this->response->setMessage('Registro atualizado com sucesso!')->setHttpResponseCode(200);\n"
+                    . "        } else {\n"
+                    . "            throw new \MonitoLib\Exception\InternalError('Não foi possível atualizar!');\n"
+                    . "        }\n"
+                    . "    }\n";
             }
 
-            $f .= "        \$updated = \${$objectName}Dao->update(\${$objectName}Dto);\n"
-                . "\n"
-                . "        if (\$updated > 0) {\n"
-                . "            \$this->response->setMessage('Registro atualizado com sucesso!')->setHttpResponseCode(200);\n"
-                . "        } else {\n"
-                . "            throw new \MonitoLib\Exception\InternalError('Não foi possível atualizar!');\n"
-                . "        }\n"
-                . "    }\n"
-            . "}";
+            $f .= "}";
 
         file_put_contents($filePath, $f);
     }
@@ -578,13 +596,13 @@ class Create extends Command
     }
     private function createModel ($table)
     {
-        $modelDefault = new \MonitoLib\Database\Model\MySQL;
+        $modelDefault = "\\MonitoLib\\Database\\Model\\{$this->dbms($this->config->dbms)}";
+        $modelDefault = new $modelDefault;
 
         $output = '';
         $keys = '';
 
-        foreach ($table->getColumns() as $column)
-        {
+        foreach ($table->getColumns() as $column) {
             $cl = strlen($column->getName());
             $ci = $cl;//$bi + $cl;
             $it = floor($ci / 4);
@@ -593,24 +611,19 @@ class Create extends Command
 
             $output .= "        '" . $column->getName() . "' => [\n";
 
-            if ($column->getIsAuto())
-            {
+            if ($column->getIsAuto()) {
                 $output .= "$li'auto' => true,\n";
             }
 
-            if ($column->getType() == 'char')
-            {
-                if ($column->getCharset() != $modelDefault->getDefaults('charset'))
-                {
+            if ($column->getType() == 'char') {
+                if ($column->getCharset() != $modelDefault->getDefaults('charset')) {
                     $output .= "$li'charset'   => '{$column->getCharset()}',\n";
                 }
-                if ($column->getCollation() != $modelDefault->getDefaults('collation'))
-                {
+                if ($column->getCollation() != $modelDefault->getDefaults('collation')) {
                     $output .= "$li'collation' => '{$column->getCollation()}',\n";
                 }
             }
-            if (!is_null($column->getDefaultValue()))
-            {
+            if (!is_null($column->getDefaultValue())) {
                 //if ()
                 //{
                 //
@@ -618,33 +631,27 @@ class Create extends Command
 
                 $output .= "$li'defaultValue' => '{$column->getDefaultValue()}',\n";
             }
-            if (!is_null($column->getLabel()))
-            {
+            if (!is_null($column->getLabel())) {
                 $output .= "$li'label' => '{$column->getLabel()}',\n";
             }
-            if (!is_null($column->getMaxLength()) && $column->getMaxLength() > 0)
-            {
+            if (!is_null($column->getMaxLength()) && $column->getMaxLength() > 0) {
                 $output .= "$li'maxLength' => {$column->getMaxLength()},\n";
             }
-            if ($column->getIsPrimary())
-            {
+            if ($column->getIsPrimary()) {
                 $keys .= "'" . $column->getName() . "',";
                 $output .= "$li'primary' => true,\n";
             }
-            if ($column->getIsRequired())
-            {
+            if ($column->getIsRequired()) {
                 $output .= "$li'required' => true,\n";
             }
-            if ($modelDefault->getDefaults('type') != $column->getDatatype())
-            {
+            if ($modelDefault->getDefaults('type')) {
+            // if ($modelDefault->getDefaults('type') != $column->getDatatype()) {
                 $output .= "$li'type' => '{$column->getDatatype()}',\n";
             }
-            if ($modelDefault->getDefaults('unique') != $column->getIsUnique())
-            {
+            if ($modelDefault->getDefaults('unique') != $column->getIsUnique()) {
                 $output .= "$li'unique' => {$column->getIsUnique()},\n";
             }
-            if ($modelDefault->getDefaults('unsigned') != $column->getIsUnsigned())
-            {
+            if ($modelDefault->getDefaults('unsigned') != $column->getIsUnsigned()) {
                 $output .= "$li'unsigned' => {$column->getIsUnsigned()},\n";
             }
 
@@ -666,7 +673,7 @@ class Create extends Command
             . "namespace {$this->namespace}model;\n"
             . "\n"
             // TODO: checks dbms to extends to right class
-            . "class $c extends \\MonitoLib\\Database\\Model\\MySQL\n"
+            . "class $c extends \\MonitoLib\\Database\\Model\\{$this->dbms($this->config->dbms)}\n"
             . "{\n"
             . "    const VERSION = '1.0.0';\n"
             . "\n"

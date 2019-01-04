@@ -270,10 +270,10 @@ class Oracle
 	}
 	public function listTablesAndColumns ($tableName = null, $columns = null)
 	{
-		$sql = 'SELECT LOWER(t.table_name) AS table_name, LOWER(c.column_name) AS column_name, c.data_type, c.data_precision, c.data_scale, c.nullable, c.column_id, c.default_length, '
+		$sql = 'SELECT t.table_type, LOWER(t.table_name) AS table_name, LOWER(c.column_name) AS column_name, c.data_type, c.data_precision, c.data_scale, c.nullable, c.column_id, c.default_length, '
 			. 'c.data_default, c.character_set_name, c.char_length '
-			. 'FROM (SELECT view_name AS table_name FROM user_views '
-			. 'UNION ALL SELECT table_name FROM user_tables) t '
+			. 'FROM (SELECT \'view\' AS table_type, view_name AS table_name FROM user_views '
+			. 'UNION ALL SELECT \'table\' AS table_type, table_name FROM user_tables) t '
 			. 'INNER JOIN user_tab_columns c ON t.table_name = c.table_name ';
 
 		if (!is_null($tableName)) {
@@ -301,8 +301,7 @@ class Oracle
 
 		$exe = @oci_execute($stt);
 
-		if (!$exe)
-		{
+		if (!$exe) {
 			$e = oci_error($stt);
 			throw new \Exception($e['message']);
 		}
@@ -316,22 +315,26 @@ class Oracle
 			if ($currentTable !== $r['TABLE_NAME']) {
 				$tableDto = new \MonitoCli\Database\Dto\Table;
 				$tableDto->setTableName($tableName);
-				$tableDto->setTableType('T');
+				$tableDto->setTableType($r['TABLE_TYPE']);
 				$data[] = \MonitoCli\Database\Helper::table($tableDto);
 			}
 
 			$dataType = $r['DATA_TYPE'];
 			$dataScale = $r['DATA_SCALE'];
 
-			if ($dataType == 'NUMBER') {
-				$type = 'int';
-				if ($dataScale > 0) {
-					$type = 'float';
+			switch ($dataType) {
+				case 'DATE': {
+					$type = 'date';
+					break;
 				}
-			} elseif ($dataType == 'DATE') {
-				$type = 'date';
-			} else {
-				$type = 'varchar';
+				case 'NUMBER':
+					$type = 'int';
+					if ($dataScale > 0) {
+						$type = 'float';
+					}
+					break;
+				default:
+					$type = 'varchar';
 			}
 
 			$defaultValue = trim(trim(trim($r['DATA_DEFAULT']), "'"));
@@ -339,7 +342,6 @@ class Oracle
 			if ($defaultValue == 'NULL') {
 				$defaultValue = null;
 			}
-
 
 			$columnDto = new \MonitoCli\Database\Dto\Column;
 			$columnDto->setTable($r['TABLE_NAME']);
@@ -514,71 +516,6 @@ class Oracle
 					}
 				}
 				//\jLib\Dev::pre($relationModel);
-			}
-		}
-	}
-	private function OLDloadTables ()
-	{
-		$tables = $this->listTables($this->connection->getDbName(), $this->tables);
-		
-		foreach ($tables as $t)
-		{
-			$className    = '';
-			$tableName    = $t['TABLE_NAME']; 	
-			$tableAlias   = $tableName;
-			$className    = '';
-			$objectName   = '';
-			$viewName     = '';
-			$singularName = '';
-			$pluralName   = '';
-			$active       = 1;
-			$frag         = explode('_', $tableName);
-	
-			foreach ($frag as $f)
-			{
-				$className .= $this->util->toSingular(ucfirst($f));
-			}
-	
-			$objectName = strtolower(substr($className, 0, 1)) . substr($className, 1);
-			$viewName   = str_replace('_', '-', strtolower($tableName));
-	
-			foreach ($frag as $f)
-			{
-				$singularName .= $this->util->toSingular(ucfirst($f)) . ' ';
-			}
-	
-			foreach ($frag as $f)
-			{
-				$pluralName .= $this->util->toPlural(ucfirst($f)) . ' ';
-			}
-			
-			$singularName = substr($singularName, 0, -1);
-			$pluralName   = substr($pluralName, 0, -1);
-	
-			$tableModel = new \model\Table;
-			$tableModel->setProjectId($this->projectId);
-			$tableModel->setConnectionId($this->connection->getId());
-			$tableModel->setTableName($tableName);
-			$tableModel->setTableAlias($tableAlias);
-			$tableModel->setClassName($className);
-			$tableModel->setObjectName($objectName);
-			$tableModel->setViewName($viewName);
-			$tableModel->setSingularName($singularName);
-			$tableModel->setPluralName($pluralName);
-			$tableModel->setActive($active);
-			//\jLib\Dev::pre($tableModel);
-	
-			$tableDao    = \dao\Factory::createTable();
-			$tableObject = $tableDao->getByName($tableName);
-	
-			if (is_null($tableObject))
-			{
-				$tableDao->insert($tableModel);
-			}
-			else
-			{
-				$tableModel->setId($tableObject->getId());
-				$tableDao->update($tableModel);
 			}
 		}
 	}

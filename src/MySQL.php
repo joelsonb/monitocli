@@ -22,16 +22,12 @@ class MySQL
 	}
 	private function labelIt ($label)
 	{
-		if ($label ==  'id')
-		{
+		if ($label ==  'id') {
 			$label = '#';
-		}
-		else
-		{
+		} else {
 			$frag = NULL;
 
-			if (preg_match('/_id$/', $label))
-			{
+			if (preg_match('/_id$/', $label)) {
 				//$frag  = '# ';
 				$label = substr($label, 0, -3);
 			}
@@ -39,8 +35,7 @@ class MySQL
 			$parts = explode('_', $label);
 			$label = '';
 
-			foreach ($parts as $p)
-			{
+			foreach ($parts as $p) {
 				$label .= ucfirst($p) . ' ';
 			}
 
@@ -58,18 +53,14 @@ class MySQL
 	{
 		$sql = 'SELECT * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?';
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sql .= ' AND TABLE_NAME ';
 
-			if (is_array($tableName))
-			{
+			if (is_array($tableName)) {
 				$tableName  = "'" . implode("','", $tableName) . "'";
 				$sql       .= "IN ($tableName)";
 				$tableName  = NULL;
-			}
-			else
-			{
+			} else {
 				$sql .= '= ?';
 			}
 		}
@@ -77,8 +68,7 @@ class MySQL
 		$sth = $this->connection->prepare($sql);
 		$sth->bindParam(1, $this->dbName);
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sth->bindParam(2, $tableName);
 		}
 
@@ -88,10 +78,8 @@ class MySQL
 	
 		$data = array();
 		
-		foreach ($columns as $c)
-		{
-			switch ($c['DATA_TYPE'])
-			{
+		foreach ($columns as $c) {
+			switch ($c['DATA_TYPE']) {
 				case 'char':
 				case 'varchar':
 				case 'text':
@@ -205,18 +193,14 @@ class MySQL
 	{
 		$sql = 'SELECT * FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = ?';
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sql .= ' AND TABLE_NAME ';
 
-			if (is_array($tableName))
-			{
+			if (is_array($tableName)) {
 				$tableName  = "'" . implode("','", $tableName) . "'";
 				$sql       .= "IN ($tableName)";
 				$tableName  = NULL;
-			}
-			else
-			{
+			} else {
 				$sql .= '= ?';
 			}
 		}
@@ -224,8 +208,7 @@ class MySQL
 		$sth = $this->conn->prepare($sql);
 		$sth->bindParam(1, $this->dbName);
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sth->bindParam(2, $tableName);
 		}
 
@@ -235,10 +218,8 @@ class MySQL
 
 		$data = array();
 
-		foreach ($relations as $r)
-		{
-			if (!is_null($r['REFERENCED_TABLE_NAME']))
-			{
+		foreach ($relations as $r) {
+			if (!is_null($r['REFERENCED_TABLE_NAME'])) {
 				$data[] = array(
 								'tableNameSource'       => $r['TABLE_NAME'],
 								'columnNameSource'      => $r['COLUMN_NAME'],
@@ -255,18 +236,14 @@ class MySQL
 	{
 		$sql = 'SELECT * FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?';
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sql .= ' AND TABLE_NAME ';
 
-			if (is_array($tableName))
-			{
+			if (is_array($tableName)) {
 				$tableName  = "'" . implode("','", $tableName) . "'";
 				$sql       .= "IN ($tableName)";
 				$tableName  = NULL;
-			}
-			else
-			{
+			} else {
 				$sql .= '= ?';
 			}
 		}
@@ -276,8 +253,7 @@ class MySQL
 		$sth = $this->connection->prepare($sql);
 		$sth->bindParam(1, $this->dbName);
 
-		if (!is_null($tableName))
-		{
+		if (!is_null($tableName)) {
 			$sth->bindParam(2, $tableName);
 		}
 
@@ -295,6 +271,9 @@ class MySQL
 		}
 		$sql .= 'ORDER BY t.TABLE_NAME, c.ORDINAL_POSITION';
 		$sth = $this->connection->prepare($sql);
+
+		// \MonitoLib\Dev::ee($sql);
+
 		$sth->bindParam(1, $this->config->database);
 		$sth->execute();
 
@@ -309,7 +288,13 @@ class MySQL
 			if ($currentTable !== $r['TABLE_NAME']) {
 				$tableDto = new \MonitoCli\Database\Dto\Table;
 				$tableDto->setTableName($tableName);
-				$tableDto->setTableType('T');
+
+				if ($r['TABLE_TYPE'] === 'VIEW') {
+					$tableDto->setTableType('view');
+				} else {
+					$tableDto->setTableType('table');
+				}
+
 				$data[] = \MonitoCli\Database\Helper::table($tableDto);
 			}
 
@@ -388,7 +373,7 @@ class MySQL
 			//	throw new \Exception("Table $tableName not found!");
 			//}
 
-			$columnDao   = \dao\Factory::createColumn();
+			$columnDao = \dao\Factory::createColumn();
 			$columnDto = new \model\Column;
 			//$columnDto->setTableId($tableObject->getId());
 			$columnDto->setName($columnName);
@@ -438,12 +423,10 @@ class MySQL
 
 		//\jLib\Dev::pre($relations);
 
-		foreach ($relations as $r)
-		{
+		foreach ($relations as $r) {
 			$referencedTableName = $r['REFERENCED_TABLE_NAME'];
 
-			if (!is_null($referencedTableName))
-			{
+			if (!is_null($referencedTableName)) {
 				$sourceTableName      = $r['TABLE_NAME'];
 				$sourceColumnName     = $r['COLUMN_NAME'];
 				$referencedColumnName = $r['REFERENCED_COLUMN_NAME'];
@@ -455,8 +438,7 @@ class MySQL
 
 				$referencedTable  = $tableDao->getByName($referencedTableName);
 				
-				if (!is_null($referencedTable))
-				{
+				if (!is_null($referencedTable)) {
 					$referencedColumn = $columnDao->getByName($referencedTable->getId(), $referencedColumnName);
 	
 					//$relationModel->setId($id);
@@ -468,82 +450,14 @@ class MySQL
 	
 					$relation = $relationDao->getByColumnsIds($sourceColumn->getId(), $referencedColumn->getId());
 	
-					if (is_null($relation))
-					{
+					if (is_null($relation)) {
 						$relationDao->insert($relationModel);
-					}
-					else
-					{
+					} else {
 						$relationModel->setId($relation->getId());
 						$relationDao->update($relationModel);
 					}
 				}
 				//\jLib\Dev::pre($relationModel);
-			}
-		}
-	}
-	private function OLDloadTables ()
-	{
-		$tables = $this->listTables($this->connection->getDbName(), $this->tables);
-		
-		foreach ($tables as $t)
-		{
-			$className    = '';
-			$tableName    = $t['TABLE_NAME']; 	
-			$tableAlias   = $tableName;
-			$className    = '';
-			$objectName   = '';
-			$viewName     = '';
-			$singularName = '';
-			$pluralName   = '';
-			$active       = 1;
-			$frag         = explode('_', $tableName);
-	
-			foreach ($frag as $f)
-			{
-				$className .= $this->util->toSingular(ucfirst($f));
-			}
-	
-			$objectName = strtolower(substr($className, 0, 1)) . substr($className, 1);
-			$viewName   = str_replace('_', '-', strtolower($tableName));
-	
-			foreach ($frag as $f)
-			{
-				$singularName .= $this->util->toSingular(ucfirst($f)) . ' ';
-			}
-	
-			foreach ($frag as $f)
-			{
-				$pluralName .= $this->util->toPlural(ucfirst($f)) . ' ';
-			}
-			
-			$singularName = substr($singularName, 0, -1);
-			$pluralName   = substr($pluralName, 0, -1);
-	
-			$tableModel = new \model\Table;
-			$tableModel->setProjectId($this->projectId);
-			$tableModel->setConnectionId($this->connection->getId());
-			$tableModel->setTableName($tableName);
-			$tableModel->setTableAlias($tableAlias);
-			$tableModel->setClassName($className);
-			$tableModel->setObjectName($objectName);
-			$tableModel->setViewName($viewName);
-			$tableModel->setSingularName($singularName);
-			$tableModel->setPluralName($pluralName);
-			$tableModel->setActive($active);
-			//\jLib\Dev::pre($tableModel);
-	
-			$tableDao    = \dao\Factory::createTable();
-			$tableObject = $tableDao->getByName($tableName);
-	
-			if (is_null($tableObject))
-			{
-				$tableDao->insert($tableModel);
-			}
-			else
-			{
-				$tableModel->setId($tableObject->getId());
-				$tableDao->update($tableModel);
 			}
 		}
 	}
